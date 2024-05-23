@@ -61,7 +61,9 @@ public class PhoneDriver {
 
         var num = Integer.parseInt(phoneNumber.substring(5));
 
-        var provider = getPhoneListMap().get(code).stream().filter(
+
+
+        var provider = getPhoneListMap().getOrDefault(code, new ArrayList<>()).stream().filter(
                 x -> num >= x.getNumfirst() && num <= x.getNumlast()
                 ).findFirst();
 
