@@ -3,27 +3,28 @@ package com.example.phoneprovider;
 import org.springframework.stereotype.Component;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class PhoneDriver {
     private final DB db;
-    private List<Phone> phoneList;
+    private Map<Integer, List<Phone>> phoneListMap;
 
     public PhoneDriver(DB db) {
         this.db = db;
     }
 
-    public List<Phone> getPhoneList() {
-        if (phoneList == null) {
+    public Map<Integer, List<Phone>> getPhoneListMap() {
+        if (phoneListMap == null) {
             loadPhoneList();
         }
-        return phoneList;
+        return phoneListMap;
     }
 
     private void loadPhoneList() {
-        List<Phone> loadedPhoneList = new ArrayList<>();
+        var loadedPhoneListMap = new HashMap<Integer, List<Phone>>();
+        var loadedPhoneList = new ArrayList<Phone>();
 
         try (var connection = db.connect();
              var stmt = connection.createStatement();
@@ -36,7 +37,15 @@ public class PhoneDriver {
                                 rs.getInt("numlast"),
                                 rs.getString("provider")));
             }
-            this.phoneList = loadedPhoneList;
+
+
+            loadedPhoneList.stream()
+                    .map(Phone::getCode)
+                    .distinct()
+                    .forEach(code -> loadedPhoneListMap.put(code, new ArrayList<>(loadedPhoneList.stream()
+                            .filter(y -> y.getCode() == code).collect(Collectors.toList()))));
+
+            this.phoneListMap = loadedPhoneListMap;
 
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -52,9 +61,9 @@ public class PhoneDriver {
 
         var num = Integer.parseInt(phoneNumber.substring(5));
 
-        var provider = getPhoneList().stream().filter(x -> x.getCode() == code
-                        && (num >= x.getNumfirst() && num <= x.getNumlast()))
-                .findFirst();
+        var provider = getPhoneListMap().get(code).stream().filter(
+                x -> num >= x.getNumfirst() && num <= x.getNumlast()
+                ).findFirst();
 
         return provider.map(Phone::getProvider).orElse("Incorrect number");
     }
